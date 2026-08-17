@@ -1,0 +1,1024 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#FAFAF8">
+<title>Trace · 追踪</title>
+<style>
+/* ===== Reset ===== */
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html{font-size:16px}
+body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Noto Sans CJK SC",sans-serif;background:var(--bg);color:var(--text);line-height:1.5;overflow:hidden;transition:background .2s,color .2s}
+button{border:none;background:none;font-family:inherit;font-size:inherit;color:inherit;cursor:pointer}
+input,textarea,select{font-family:inherit;font-size:inherit;border:none;outline:none;background:none;color:inherit}
+ul,ol{list-style:none}
+a{color:inherit;text-decoration:none}
+
+/* ===== Theme ===== */
+:root{
+  --bg:#FAFAF8;--card:#FFFFFF;--border:#EDEDEA;--text:#1C1C1E;--text2:#86868B;--text3:#AEAEB2;
+  --accent:#1C1C1E;--diary:#7C6BFF;--study:#2E8B7A;--income:#E0952A;--alert:#D9453F;
+  --overlay:rgba(0,0,0,.35);--tab-h:52px;--header-h:48px;
+}
+[data-theme=dark]{
+  --bg:#1C1C1E;--card:#2C2C2E;--border:#3A3A3C;--text:#F2F2F7;--text2:#8E8E93;--text3:#636366;
+  --accent:#F2F2F7;--overlay:rgba(0,0,0,.5);
+}
+
+/* ===== Layout ===== */
+#app{max-width:430px;margin:0 auto;height:100dvh;display:flex;flex-direction:column;position:relative;background:var(--bg);transition:background .2s}
+@media(min-width:431px){#app{border-left:1px solid var(--border);border-right:1px solid var(--border)}}
+
+/* ===== Header ===== */
+#app-header{height:var(--header-h);padding:0 16px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0;border-bottom:1px solid var(--border);background:var(--bg);transition:background .2s,border-color .2s}
+#page-title{font-size:17px;font-weight:700}
+#header-actions{display:flex;gap:8px;align-items:center}
+.icon-btn{width:32px;height:32px;display:flex;align-items:center;justify-content:center;border-radius:8px;color:var(--text)}
+.icon-btn:active{background:var(--border)}
+.icon-btn svg{width:22px;height:22px}
+
+/* ===== Content ===== */
+#app-content{flex:1;overflow-y:auto;overflow-x:hidden;-webkit-overflow-scrolling:touch}
+.page{display:none;padding:16px;padding-bottom:calc(var(--tab-h) + 16px + env(safe-area-inset-bottom))}
+.page.active{display:block;animation:fadeIn .15s ease}
+@keyframes fadeIn{from{opacity:0}to{opacity:1}}
+
+/* ===== Tab Bar ===== */
+#tab-bar{height:calc(var(--tab-h) + env(safe-area-inset-bottom));padding-bottom:env(safe-area-inset-bottom);border-top:1px solid var(--border);display:flex;background:var(--bg);flex-shrink:0;transition:background .2s,border-color .2s}
+.tab{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;color:var(--text3);transition:color .15s}
+.tab svg{width:24px;height:24px}
+.tab span{font-size:10px}
+.tab.active{color:var(--accent)}
+
+/* ===== Cards ===== */
+.card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:12px;transition:background .2s,border-color .2s}
+.card-tap:active{opacity:.7}
+
+/* ===== Section Title ===== */
+.section-title{font-size:13px;font-weight:600;color:var(--text2);margin:16px 0 8px;padding-left:4px}
+
+/* ===== Today Page ===== */
+.today-date{font-size:28px;font-weight:800;margin-bottom:4px}
+.today-weekday{font-size:14px;color:var(--text2);margin-bottom:16px}
+.countdown-card{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:20px;text-align:center;margin-bottom:16px;transition:background .2s,border-color .2s}
+.countdown-days{font-size:56px;font-weight:900;line-height:1;letter-spacing:-2px;color:var(--accent)}
+.countdown-label{font-size:13px;color:var(--text2);margin-top:4px}
+.countdown-target{font-size:13px;color:var(--text2);margin-top:8px}
+.countdown-target strong{color:var(--text);font-weight:600}
+
+/* ===== Tasks ===== */
+.task-item{display:flex;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid var(--border);transition:border-color .2s}
+.task-item:last-child{border-bottom:none}
+.task-check{width:22px;height:22px;border:2px solid var(--text3);border-radius:6px;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:border-color .15s}
+.task-check.done{background:var(--accent);border-color:var(--accent)}
+.task-check.done svg{width:14px;height:14px;color:var(--bg)}
+.task-check:not(.done):active{border-color:var(--accent)}
+.task-title{flex:1;font-size:15px}
+.task-item.done .task-title{color:var(--text3);text-decoration:line-through}
+.task-delete{width:28px;height:28px;display:flex;align-items:center;justify-content:center;border-radius:6px;opacity:0;transition:opacity .15s}
+.task-item:active .task-delete{opacity:1}
+.task-delete svg{width:18px;height:18px;color:var(--alert)}
+.add-task-row{display:flex;align-items:center;gap:12px;padding:12px 0;color:var(--text2)}
+.add-task-row svg{width:20px;height:20px}
+.add-task-row:active{opacity:.6}
+.task-input{flex:1;font-size:15px;padding:8px 0}
+.task-count{font-size:13px;color:var(--text2);margin-bottom:8px}
+
+/* ===== Stats Row ===== */
+.stats-row{display:flex;gap:8px;margin-bottom:12px}
+.stat-card{flex:1;background:var(--card);border:1px solid var(--border);border-radius:12px;padding:14px;text-align:center;transition:background .2s,border-color .2s}
+.stat-value{font-size:22px;font-weight:700}
+.stat-value.study{color:var(--study)}
+.stat-value.income{color:var(--income)}
+.stat-label{font-size:11px;color:var(--text2);margin-top:2px}
+
+/* ===== Diary ===== */
+.diary-entry{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:14px;margin-bottom:10px;transition:background .2s,border-color .2s}
+.diary-entry:active{opacity:.7}
+.diary-date{font-size:14px;font-weight:600;margin-bottom:6px}
+.diary-preview{font-size:14px;color:var(--text2);line-height:1.6;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+.diary-month-header{font-size:13px;font-weight:700;color:var(--text2);margin:16px 0 8px;padding-left:4px}
+.empty-state{text-align:center;padding:48px 16px;color:var(--text3)}
+.empty-state svg{width:48px;height:48px;margin-bottom:12px;opacity:.4}
+.empty-state p{font-size:14px}
+
+/* ===== Study Timer ===== */
+.timer-wrap{display:flex;flex-direction:column;align-items:center;padding:24px}
+.timer-circle{width:200px;height:200px;border-radius:50%;border:2px solid var(--border);display:flex;flex-direction:column;align-items:center;justify-content:center;transition:border-color .2s}
+.timer-circle.running{border-color:var(--study)}
+.timer-circle.paused{border-color:var(--income)}
+.timer-time{font-size:36px;font-weight:700;font-variant-numeric:tabular-nums;letter-spacing:-1px}
+.timer-subject{font-size:13px;color:var(--text2);margin-top:4px}
+.timer-controls{display:flex;gap:12px;margin-top:24px}
+.timer-btn{padding:10px 28px;border-radius:10px;font-size:15px;font-weight:600;transition:opacity .15s}
+.timer-btn:active{opacity:.7}
+.timer-btn.primary{background:var(--study);color:#fff}
+.timer-btn.secondary{border:1px solid var(--border);color:var(--text)}
+.timer-btn.danger{border:1px solid var(--alert);color:var(--alert)}
+.subject-chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:20px}
+.chip{padding:6px 14px;border-radius:16px;font-size:13px;border:1px solid var(--border);color:var(--text2);transition:all .15s}
+.chip.active{background:var(--study);color:#fff;border-color:var(--study)}
+.chip:active{opacity:.7}
+
+/* ===== Income ===== */
+.income-summary{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:20px;text-align:center;margin-bottom:16px;transition:background .2s,border-color .2s}
+.income-total{font-size:36px;font-weight:800;color:var(--income);letter-spacing:-1px}
+.income-total-label{font-size:13px;color:var(--text2);margin-top:4px}
+.income-entry{display:flex;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid var(--border);transition:border-color .2s}
+.income-entry:last-child{border-bottom:none}
+.income-entry-icon{width:36px;height:36px;border-radius:10px;background:color-mix(in srgb,var(--income) 12%,transparent);display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.income-entry-icon svg{width:18px;height:18px;color:var(--income)}
+.income-entry-info{flex:1}
+.income-entry-source{font-size:15px;font-weight:600}
+.income-entry-note{font-size:12px;color:var(--text2)}
+.income-entry-amount{font-size:16px;font-weight:700;color:var(--income)}
+
+/* ===== Mine Page ===== */
+.mine-header{text-align:center;padding:32px 0 24px}
+.mine-avatar{width:72px;height:72px;border-radius:50%;background:var(--accent);margin:0 auto 12px;display:flex;align-items:center;justify-content:center;color:var(--bg);font-size:28px;font-weight:800}
+.mine-name{font-size:20px;font-weight:700}
+.mine-section{margin-bottom:16px}
+.mine-row{display:flex;align-items:center;gap:12px;padding:14px 16px;border-bottom:1px solid var(--border);transition:border-color .2s}
+.mine-row:last-child{border-bottom:none}
+.mine-row svg.row-icon{width:20px;height:20px;color:var(--text2);flex-shrink:0}
+.mine-row .row-label{flex:1;font-size:15px}
+.mine-row .row-value{font-size:14px;color:var(--text2)}
+.mine-row:active{background:var(--border)}
+.switch{width:44px;height:26px;border-radius:13px;background:var(--border);position:relative;transition:background .2s;flex-shrink:0}
+.switch.on{background:var(--study)}
+.switch-knob{width:22px;height:22px;border-radius:50%;background:#fff;position:absolute;top:2px;left:2px;transition:left .2s;box-shadow:0 1px 3px rgba(0,0,0,.15)}
+.switch.on .switch-knob{left:20px}
+
+/* ===== Modal ===== */
+#modal-overlay{position:fixed;inset:0;background:var(--overlay);display:none;z-index:100;opacity:0;transition:opacity .2s}
+#modal-overlay.show{display:flex;align-items:flex-end;justify-content:center;opacity:1}
+.modal{background:var(--bg);width:100%;max-width:430px;border-radius:20px 20px 0 0;max-height:90dvh;overflow-y:auto;transition:background .2s;animation:slideUp .25s ease;padding-bottom:env(safe-area-inset-bottom)}
+@keyframes slideUp{from{transform:translateY(100%)}to{transform:translateY(0)}}
+.modal-header{display:flex;align-items:center;justify-content:space-between;padding:16px;border-bottom:1px solid var(--border);transition:border-color .2s}
+.modal-title{font-size:16px;font-weight:700}
+.modal-close{width:32px;height:32px;display:flex;align-items:center;justify-content:center;border-radius:8px}
+.modal-close:active{background:var(--border)}
+.modal-close svg{width:20px;height:20px;color:var(--text2)}
+.modal-body{padding:16px}
+.modal-footer{padding:0 16px 16px;display:flex;gap:10px}
+.btn{flex:1;padding:12px;border-radius:10px;font-size:15px;font-weight:600;text-align:center;transition:opacity .15s}
+.btn:active{opacity:.7}
+.btn-primary{background:var(--accent);color:var(--bg)}
+.btn-secondary{background:var(--border);color:var(--text)}
+.btn-danger{background:var(--alert);color:#fff}
+
+/* ===== Form ===== */
+.form-group{margin-bottom:16px}
+.form-label{font-size:13px;font-weight:600;color:var(--text2);margin-bottom:6px;display:block}
+.form-input,.form-textarea,.form-select{width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:8px;background:var(--card);color:var(--text);font-size:15px;transition:border-color .2s,background .2s}
+.form-input:focus,.form-textarea:focus,.form-select:focus{border-color:var(--accent)}
+.form-textarea{min-height:200px;resize:vertical;line-height:1.6;font-family:inherit}
+.form-row{display:flex;gap:10px}
+.form-row>*{flex:1}
+.form-hint{font-size:12px;color:var(--text3);margin-top:4px}
+.tag-list{display:flex;flex-wrap:wrap;gap:8px}
+.tag{display:inline-flex;align-items:center;gap:6px;padding:6px 12px;border-radius:16px;font-size:13px;background:var(--card);border:1px solid var(--border)}
+.tag-remove{width:16px;height:16px;display:flex;align-items:center;justify-content:center;color:var(--alert);font-size:16px}
+
+/* ===== Markdown ===== */
+.md-content{font-size:15px;line-height:1.7}
+.md-content h1{font-size:22px;font-weight:800;margin:16px 0 8px}
+.md-content h2{font-size:19px;font-weight:700;margin:14px 0 6px}
+.md-content h3{font-size:17px;font-weight:600;margin:12px 0 4px}
+.md-content p{margin:8px 0}
+.md-content strong{font-weight:700}
+.md-content em{font-style:italic}
+.md-content code{font-family:"SF Mono","Fira Code",monospace;font-size:13px;background:var(--border);padding:1px 5px;border-radius:4px}
+.md-content pre{background:var(--border);padding:12px;border-radius:8px;overflow-x:auto;margin:8px 0}
+.md-content pre code{background:none;padding:0}
+.md-content blockquote{border-left:3px solid var(--border);padding-left:12px;margin:8px 0;color:var(--text2)}
+.md-content ul,.md-content ol{padding-left:20px;margin:8px 0}
+.md-content ul li{list-style:disc}
+.md-content ol li{list-style:decimal}
+.md-content br{display:block;margin:4px 0}
+
+/* ===== Toast ===== */
+#toast{position:fixed;top:60px;left:50%;transform:translateX(-50%) translateY(-100px);background:var(--text);color:var(--bg);padding:8px 20px;border-radius:20px;font-size:14px;z-index:200;transition:transform .3s ease;pointer-events:none;white-space:nowrap}
+#toast.show{transform:translateX(-50%) translateY(0)}
+
+/* ===== Misc ===== */
+.divider{height:1px;background:var(--border);margin:16px 0;transition:background .2s}
+.text-center{text-align:center}
+.text-2{color:var(--text2)}
+.text-3{color:var(--text3)}
+.mt-8{margin-top:8px}.mt-16{margin-top:16px}.mt-24{margin-top:24px}
+.mb-8{margin-bottom:8px}.mb-16{margin-bottom:16px}
+.flex{display:flex}.gap-8{gap:8px}.gap-12{gap:12px}
+.items-center{align-items:center}
+.justify-between{justify-content:space-between}
+.f-1{flex:1}
+.hidden{display:none}
+</style>
+</head>
+<body>
+<div id="app">
+  <header id="app-header">
+    <h1 id="page-title">今日</h1>
+    <div id="header-actions"></div>
+  </header>
+  <main id="app-content">
+    <section id="page-today" class="page active"></section>
+    <section id="page-diary" class="page"></section>
+    <section id="page-study" class="page"></section>
+    <section id="page-income" class="page"></section>
+    <section id="page-mine" class="page"></section>
+  </main>
+  <nav id="tab-bar"></nav>
+</div>
+<div id="modal-overlay"></div>
+<div id="toast"></div>
+
+<script>
+/* ================================================================
+   Trace · 个人成长追踪 — 单页 Web 应用
+   ================================================================ */
+
+/* ===== Icons (SVG) ===== */
+const I = {
+  today: '<rect x="3" y="4" width="18" height="18" rx="2" fill="none" stroke="currentColor" stroke-width="1.5"/><line x1="3" y1="10" x2="21" y2="10" stroke="currentColor" stroke-width="1.5"/><line x1="8" y1="2" x2="8" y2="6" stroke="currentColor" stroke-width="1.5"/><line x1="16" y1="2" x2="16" y2="6" stroke="currentColor" stroke-width="1.5"/>',
+  diary: '<path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" fill="none" stroke="currentColor" stroke-width="1.5"/>',
+  study: '<path d="M22 10v6M2 10l10-5 10 5-10 5z" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M6 12v5c3 3 9 3 12 0v-5" fill="none" stroke="currentColor" stroke-width="1.5"/>',
+  income: '<rect x="2" y="6" width="20" height="14" rx="2" fill="none" stroke="currentColor" stroke-width="1.5"/><circle cx="12" cy="13" r="3" fill="none" stroke="currentColor" stroke-width="1.5"/><line x1="6" y1="6" x2="6" y2="4" stroke="currentColor" stroke-width="1.5"/><line x1="18" y1="6" x2="18" y2="4" stroke="currentColor" stroke-width="1.5"/>',
+  mine: '<circle cx="12" cy="8" r="4" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M4 21v-1a7 7 0 0 1 14 0v1" fill="none" stroke="currentColor" stroke-width="1.5"/>',
+  plus: '<line x1="12" y1="5" x2="12" y2="19" stroke="currentColor" stroke-width="2"/><line x1="5" y1="12" x2="19" y2="12" stroke="currentColor" stroke-width="2"/>',
+  check: '<polyline points="20 6 9 17 4 12" fill="none" stroke="currentColor" stroke-width="2.5"/>',
+  close: '<line x1="18" y1="6" x2="6" y2="18" stroke="currentColor" stroke-width="2"/><line x1="6" y1="6" x2="18" y2="18" stroke="currentColor" stroke-width="2"/>',
+  play: '<polygon points="6 4 20 12 6 20" fill="currentColor"/>',
+  pause: '<rect x="6" y="5" width="4" height="14" rx="1" fill="currentColor"/><rect x="14" y="5" width="4" height="14" rx="1" fill="currentColor"/>',
+  stop: '<rect x="6" y="6" width="12" height="12" rx="2" fill="currentColor"/>',
+  trash: '<polyline points="3 6 5 6 21 6" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" fill="none" stroke="currentColor" stroke-width="1.5"/>',
+  edit: '<path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M18.5 2.5a2.12 2.12 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" fill="none" stroke="currentColor" stroke-width="1.5"/>',
+  chevronR: '<polyline points="9 18 15 12 9 6" fill="none" stroke="currentColor" stroke-width="1.5"/>',
+  clock: '<circle cx="12" cy="12" r="10" fill="none" stroke="currentColor" stroke-width="1.5"/><polyline points="12 6 12 12 16 14" fill="none" stroke="currentColor" stroke-width="1.5"/>',
+  wallet: '<path d="M3 7a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" fill="none" stroke="currentColor" stroke-width="1.5"/><circle cx="16" cy="12" r="2" fill="none" stroke="currentColor" stroke-width="1.5"/>',
+  gear: '<circle cx="12" cy="12" r="3" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M12 1v3m0 16v3m11-11h-3M4 12H1m17.07-7.07l-2.12 2.12M7.05 16.95l-2.12 2.12m12.14 0l-2.12-2.12M7.05 7.05L4.93 4.93" fill="none" stroke="currentColor" stroke-width="1.5"/>',
+  download: '<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" fill="none" stroke="currentColor" stroke-width="1.5"/><polyline points="7 10 12 15 17 10" fill="none" stroke="currentColor" stroke-width="1.5"/><line x1="12" y1="15" x2="12" y2="3" stroke="currentColor" stroke-width="1.5"/>',
+  book: '<path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" fill="none" stroke="currentColor" stroke-width="1.5"/>',
+  tag: '<path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z" fill="none" stroke="currentColor" stroke-width="1.5"/><circle cx="7" cy="7" r="1.5" fill="currentColor"/>',
+  target: '<circle cx="12" cy="12" r="10" fill="none" stroke="currentColor" stroke-width="1.5"/><circle cx="12" cy="12" r="6" fill="none" stroke="currentColor" stroke-width="1.5"/><circle cx="12" cy="12" r="2" fill="currentColor"/>',
+};
+const svg = (name, w=24, h=24) => `<svg viewBox="0 0 24 24" width="${w}" height="${h}">${I[name]||''}</svg>`;
+
+/* ===== Utils ===== */
+const $ = s => document.querySelector(s);
+const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2,8);
+const todayStr = () => { const d=new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; };
+const nowTime = () => { const d=new Date(); return `${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`; };
+const fmtMoney = cents => '¥' + (cents/100).toLocaleString('zh-CN',{minimumFractionDigits:2,maximumFractionDigits:2});
+const fmtDuration = mins => {
+  const h=Math.floor(mins/60), m=mins%60;
+  if(h>0&&m>0) return h+'小时'+m+'分';
+  if(h>0) return h+'小时';
+  return m+'分';
+};
+const fmtDate = dateStr => { const [y,m,d]=dateStr.split('-'); return `${parseInt(m)}月${parseInt(d)}日`; };
+const fmtDateFull = dateStr => { const [y,m,d]=dateStr.split('-'); return `${y}年${parseInt(m)}月${parseInt(d)}日`; };
+const weekdayCN = ['日','一','二','三','四','五','六'];
+const fmtWeekday = () => '星期'+weekdayCN[new Date().getDay()];
+const daysBetween = (d1,d2) => Math.round((new Date(d2)-new Date(d1))/86400000);
+const daysUntil = dateStr => { const today=todayStr(); return daysBetween(today,dateStr); };
+const monthKey = dateStr => dateStr.slice(0,7);
+const fmtMonth = mk => { const [y,m]=mk.split('-'); return `${y}年${parseInt(m)}月`; };
+const escapeHtml = t => t.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+
+/* ===== Markdown ===== */
+function inlineMd(text){
+  text = escapeHtml(text);
+  text = text.replace(/!\[([^\]]*)\]\(([^)]+)\)/g, '<img alt="$1" src="$2" style="max-width:100%;border-radius:8px;margin:8px 0">');
+  text = text.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" style="color:var(--diary)">$1</a>');
+  text = text.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+  text = text.replace(/(?<!\*)\*([^*\n]+?)\*(?!\*)/g, '<em>$1</em>');
+  text = text.replace(/~~(.+?)~~/g, '<del>$1</del>');
+  text = text.replace(/`([^`]+)`/g, '<code>$1</code>');
+  return text;
+}
+function renderMd(text){
+  if(!text) return '<p style="color:var(--text3)">（空）</p>';
+  const lines = text.split('\n');
+  let html = [], inCode = false, inUl = false, inOl = false, codeLang = '';
+  for(let line of lines){
+    if(line.trim().startsWith('```')){
+      if(inCode){ html.push('</code></pre>'); inCode=false; }
+      else { codeLang = line.trim().slice(3); html.push('<pre><code>'); inCode=true; }
+      continue;
+    }
+    if(inCode){ html.push(escapeHtml(line)); continue; }
+    if(line.trim().startsWith('---')){ if(inUl){html.push('</ul>');inUl=false} if(inOl){html.push('</ol>');inOl=false} html.push('<hr style="border:none;border-top:1px solid var(--border);margin:12px 0">'); continue; }
+    let m;
+    if(m=line.match(/^(#{1,3})\s+(.+)/)){
+      if(inUl){html.push('</ul>');inUl=false} if(inOl){html.push('</ol>');inOl=false}
+      const lvl=m[1].length; html.push(`<h${lvl}>${inlineMd(m[2])}</h${lvl}>`);
+    } else if(m=line.match(/^>\s*(.*)/)){
+      if(inUl){html.push('</ul>');inUl=false} if(inOl){html.push('</ol>');inOl=false}
+      html.push(`<blockquote>${inlineMd(m[1])}</blockquote>`);
+    } else if(m=line.match(/^[-*+]\s+(.+)/)){
+      if(inOl){html.push('</ol>');inOl=false} if(!inUl){html.push('<ul>');inUl=true}
+      html.push(`<li>${inlineMd(m[1])}</li>`);
+    } else if(m=line.match(/^\d+\.\s+(.+)/)){
+      if(inUl){html.push('</ul>');inUl=false} if(!inOl){html.push('<ol>');inOl=true}
+      html.push(`<li>${inlineMd(m[1])}</li>`);
+    } else if(line.trim()===''){
+      if(inUl){html.push('</ul>');inUl=false} if(inOl){html.push('</ol>');inOl=false}
+      html.push('<br>');
+    } else {
+      if(inUl){html.push('</ul>');inUl=false} if(inOl){html.push('</ol>');inOl=false}
+      html.push(`<p>${inlineMd(line)}</p>`);
+    }
+  }
+  if(inCode) html.push('</code></pre>');
+  if(inUl) html.push('</ul>');
+  if(inOl) html.push('</ol>');
+  return html.join('\n');
+}
+
+/* ===== State ===== */
+const STORAGE_KEY = 'trace_app_data_v1';
+let state = {
+  settings: { userName:'我', examName:'考研', examDate:'2026-12-21', darkMode:false },
+  diaries: [],
+  tasks: [],
+  studyLogs: [],
+  incomes: [],
+  subjects: ['英语','数学','政治','专业课'],
+  incomeSources: ['兼职','奖学金','生活费','其他'],
+};
+let currentTab = 'today';
+let timer = { running:false, paused:false, startTime:null, elapsedMs:0, subject:'英语', intervalId:null };
+let editingDiaryId = null;
+
+function loadState(){
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if(raw){ const d = JSON.parse(raw); state = {...state, ...d}; }
+    else { seedSampleData(); }
+  } catch(e){ console.warn('Load failed', e); seedSampleData(); }
+}
+function saveState(){ localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }
+function seedSampleData(){
+  const t = todayStr();
+  state.diaries = [
+    { id:uid(), date:t, time:nowTime(), content:'# 今天\n\n开始用 **Trace** 记录生活。\n\n- 完成了今日任务\n- 学习了2小时\n- 收到一笔兼职收入\n\n> 慢慢来，比较快。' },
+    { id:uid(), date:t, time:'08:30', content:'## 早起\n\n六点半起床，精神不错。先背了50个单词。\n\n```\nabandon  v.放弃\nabide    v.遵守\n```' },
+  ];
+  state.tasks = [
+    { id:uid(), title:'背单词100个', date:t, done:true },
+    { id:uid(), title:'做英语阅读2篇', date:t, done:true },
+    { id:uid(), title:'复习数学高数第三章', date:t, done:false },
+    { id:uid(), title:'政治刷题50道', date:t, done:false },
+  ];
+  state.studyLogs = [
+    { id:uid(), subject:'英语', date:t, duration:60, note:'背单词+阅读' },
+    { id:uid(), subject:'数学', date:t, duration:90, note:'高数第三章' },
+    { id:uid(), subject:'英语', date:'2026-08-15', duration:120, note:'真题一套' },
+    { id:uid(), subject:'数学', date:'2026-08-15', duration:100, note:'线代复习' },
+  ];
+  state.incomes = [
+    { id:uid(), source:'兼职', amount:500000, date:'2026-08-10', note:'8月工资' },
+    { id:uid(), source:'奖学金', amount:100000, date:'2026-08-05', note:'学院奖学金' },
+  ];
+  saveState();
+}
+
+/* ===== Toast ===== */
+let toastTimer;
+function toast(msg){
+  const el = $('#toast');
+  el.textContent = msg;
+  el.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(()=>el.classList.remove('show'), 2000);
+}
+
+/* ===== Modal ===== */
+function showModal(title, bodyHTML, footerHTML=''){
+  const overlay = $('#modal-overlay');
+  overlay.innerHTML = `<div class="modal">
+    <div class="modal-header">
+      <span class="modal-title">${title}</span>
+      <button class="modal-close" onclick="closeModal()">${svg('close',20,20)}</button>
+    </div>
+    <div class="modal-body">${bodyHTML}</div>
+    ${footerHTML?`<div class="modal-footer">${footerHTML}</div>`:''}
+  </div>`;
+  overlay.classList.add('show');
+}
+function closeModal(){ $('#modal-overlay').classList.remove('show'); }
+$('#modal-overlay').addEventListener('click', e=>{ if(e.target===$('#modal-overlay')) closeModal(); });
+
+/* ===== Navigation ===== */
+const TABS = [
+  { id:'today', label:'今日', icon:'today' },
+  { id:'diary', label:'日记', icon:'diary' },
+  { id:'study', label:'学习', icon:'study' },
+  { id:'income', label:'赚钱', icon:'income' },
+  { id:'mine', label:'我的', icon:'mine' },
+];
+function renderTabBar(){
+  $('#tab-bar').innerHTML = TABS.map(t =>
+    `<button class="tab ${t.id===currentTab?'active':''}" data-tab="${t.id}" onclick="switchTab('${t.id}')">${svg(t.icon)}<span>${t.label}</span></button>`
+  ).join('');
+}
+function switchTab(tab){
+  currentTab = tab;
+  document.querySelectorAll('.tab').forEach(el => el.classList.toggle('active', el.dataset.tab===tab));
+  document.querySelectorAll('.page').forEach(el => el.classList.toggle('active', el.id==='page-'+tab));
+  const labels = { today:'今日', diary:'日记', study:'学习', income:'赚钱', mine:'我的' };
+  $('#page-title').textContent = labels[tab];
+  renderHeaderActions();
+  renderPage(tab);
+  $('#app-content').scrollTop = 0;
+}
+function renderHeaderActions(){
+  const el = $('#header-actions');
+  if(currentTab==='diary'){
+    el.innerHTML = `<button class="icon-btn" onclick="openDiaryEditor()">${svg('plus')}</button>`;
+  } else if(currentTab==='income'){
+    el.innerHTML = `<button class="icon-btn" onclick="openIncomeEditor()">${svg('plus')}</button>`;
+  } else if(currentTab==='study'){
+    el.innerHTML = '';
+  } else {
+    el.innerHTML = '';
+  }
+}
+
+/* ===== Render Dispatcher ===== */
+function renderPage(tab){
+  if(tab==='today') renderToday();
+  else if(tab==='diary') renderDiary();
+  else if(tab==='study') renderStudy();
+  else if(tab==='income') renderIncome();
+  else if(tab==='mine') renderMine();
+}
+function render(){ renderPage(currentTab); }
+
+/* ===== Today Page ===== */
+function renderToday(){
+  const t = todayStr();
+  const tasks = state.tasks.filter(x=>x.date===t);
+  const doneCount = tasks.filter(x=>x.done).length;
+  const todayStudy = state.studyLogs.filter(x=>x.date===t).reduce((s,x)=>s+x.duration,0);
+  const todayIncome = state.incomes.filter(x=>x.date===t).reduce((s,x)=>s+x.amount,0);
+  const dDay = daysUntil(state.settings.examDate);
+  const [y,m,dd] = t.split('-');
+
+  let html = `
+    <div class="today-date">${parseInt(m)}月${parseInt(dd)}日</div>
+    <div class="today-weekday">${fmtWeekday()} · ${y}年</div>
+
+    <div class="countdown-card">
+      <div class="countdown-days">${dDay}</div>
+      <div class="countdown-label">天后 ${escapeHtml(state.settings.examName)}</div>
+      <div class="countdown-target">考试日期 <strong>${state.settings.examDate}</strong></div>
+    </div>
+
+    <div class="stats-row">
+      <div class="stat-card">
+        <div class="stat-value study">${fmtDuration(todayStudy)}</div>
+        <div class="stat-label">今日学习</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value income">${fmtMoney(todayIncome)}</div>
+        <div class="stat-label">今日收入</div>
+      </div>
+    </div>
+
+    <div class="section-title">今日任务 (${doneCount}/${tasks.length})</div>
+    <div class="card">
+      ${tasks.length===0 ? '<div class="empty-state" style="padding:24px"><p>还没有任务，点击下方添加</p></div>' : ''}
+      ${tasks.map(task=>`
+        <div class="task-item ${task.done?'done':''}">
+          <div class="task-check ${task.done?'done':''}" onclick="toggleTask('${task.id}')">${task.done?svg('check',14,14):''}</div>
+          <span class="task-title">${escapeHtml(task.title)}</span>
+          <button class="task-delete" onclick="deleteTask('${task.id}')">${svg('trash',18,18)}</button>
+        </div>
+      `).join('')}
+      <div class="add-task-row" onclick="openTaskInput()">
+        ${svg('plus',20,20)}
+        <span>添加任务</span>
+      </div>
+    </div>
+  `;
+  $('#page-today').innerHTML = html;
+}
+
+function openTaskInput(){
+  showModal('添加任务', `
+    <div class="form-group">
+      <input class="form-input" id="task-input-field" placeholder="输入任务名称..." autofocus>
+    </div>
+  `, `<button class="btn btn-secondary" onclick="closeModal()">取消</button><button class="btn btn-primary" onclick="addTask()">添加</button>`);
+  const input = $('#task-input-field');
+  input.focus();
+  input.addEventListener('keydown', e=>{ if(e.key==='Enter') addTask(); });
+}
+function addTask(){
+  const title = $('#task-input-field').value.trim();
+  if(!title){ toast('请输入任务名称'); return; }
+  state.tasks.push({ id:uid(), title, date:todayStr(), done:false });
+  saveState(); closeModal(); render();
+}
+function toggleTask(id){
+  const t = state.tasks.find(x=>x.id===id);
+  if(t){ t.done = !t.done; saveState(); render(); }
+}
+function deleteTask(id){
+  state.tasks = state.tasks.filter(x=>x.id!==id);
+  saveState(); render(); toast('已删除');
+}
+
+/* ===== Diary Page ===== */
+function renderDiary(){
+  const diaries = [...state.diaries].sort((a,b)=> (b.date+b.time).localeCompare(a.date+a.time));
+  if(diaries.length===0){
+    $('#page-diary').innerHTML = `<div class="empty-state">${svg('book',48,48)}<p>还没有日记，点击右上角写一篇吧</p></div>`;
+    return;
+  }
+  let lastMonth = '';
+  let html = '';
+  for(const d of diaries){
+    const mk = monthKey(d.date);
+    if(mk !== lastMonth){
+      lastMonth = mk;
+      html += `<div class="diary-month-header">${fmtMonth(mk)}</div>`;
+    }
+    const preview = d.content.replace(/[#*>`~\-\[\]()>]/g,'').replace(/\n+/g,' ').trim().slice(0,100);
+    html += `
+      <div class="diary-entry card-tap" onclick="openDiaryDetail('${d.id}')">
+        <div class="diary-date">${fmtDate(d.date)} ${d.time}</div>
+        <div class="diary-preview">${escapeHtml(preview)||'<span style="color:var(--text3)">（空）</span>'}</div>
+      </div>`;
+  }
+  $('#page-diary').innerHTML = html;
+}
+
+function openDiaryEditor(id){
+  editingDiaryId = id || null;
+  const d = id ? state.diaries.find(x=>x.id===id) : null;
+  const content = d ? d.content : '';
+  showModal(d?'编辑日记':'写日记', `
+    <div class="form-group">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+        <span class="text-2" style="font-size:13px">${fmtDateFull(todayStr())} ${nowTime()}</span>
+      </div>
+      <div style="display:flex;gap:8px;margin-bottom:8px">
+        <button class="chip" onclick="insertMd('# ')">H1</button>
+        <button class="chip" onclick="insertMd('## ')">H2</button>
+        <button class="chip" onclick="insertMd('### ')">H3</button>
+        <button class="chip" onclick="insertMd('**','**')">B</button>
+        <button class="chip" onclick="insertMd('*','*')">I</button>
+        <button class="chip" onclick="insertMd('- ')">•</button>
+        <button class="chip" onclick="insertMd('> ')">"</button>
+        <button class="chip" onclick="insertMd('\`\`\`\n','\n\`\`\`')">{ }</button>
+      </div>
+      <textarea class="form-textarea" id="diary-editor" placeholder="写下今天的故事...支持 Markdown">${escapeHtml(content)}</textarea>
+    </div>
+    <div id="diary-preview-area" style="display:none" class="card md-content"></div>
+  `, `
+    <button class="btn btn-secondary" onclick="toggleDiaryPreview()">预览</button>
+    <button class="btn btn-primary" onclick="saveDiary()">保存</button>
+  `);
+}
+function insertMd(before, after=''){
+  const ta = $('#diary-editor');
+  const start = ta.selectionStart, end = ta.selectionEnd;
+  const sel = ta.value.substring(start, end);
+  ta.value = ta.value.substring(0,start) + before + sel + after + ta.value.substring(end);
+  ta.focus();
+  if(sel){ ta.selectionStart = start+before.length; ta.selectionEnd = start+before.length+sel.length; }
+  else { ta.selectionStart = ta.selectionEnd = start + before.length; }
+}
+function toggleDiaryPreview(){
+  const area = $('#diary-preview-area');
+  const editor = $('#diary-editor');
+  if(area.style.display==='none'){
+    area.innerHTML = renderMd(editor.value);
+    area.style.display = 'block';
+    editor.style.display = 'none';
+    $('.modal-footer .btn-secondary').textContent = '编辑';
+  } else {
+    area.style.display = 'none';
+    editor.style.display = 'block';
+    $('.modal-footer .btn-secondary').textContent = '预览';
+  }
+}
+function saveDiary(){
+  const content = $('#diary-editor') ? $('#diary-editor').value : '';
+  if(!content.trim()){ toast('日记内容不能为空'); return; }
+  if(editingDiaryId){
+    const d = state.diaries.find(x=>x.id===editingDiaryId);
+    if(d){ d.content = content; d.time = nowTime(); }
+    toast('已更新');
+  } else {
+    state.diaries.push({ id:uid(), date:todayStr(), time:nowTime(), content });
+    toast('已保存');
+  }
+  saveState(); closeModal(); render();
+}
+function openDiaryDetail(id){
+  const d = state.diaries.find(x=>x.id===id);
+  if(!d) return;
+  showModal(fmtDateFull(d.date), `
+    <div class="text-2 mb-16" style="font-size:13px">${d.time}</div>
+    <div class="md-content">${renderMd(d.content)}</div>
+  `, `
+    <button class="btn btn-danger" onclick="deleteDiary('${id}')">删除</button>
+    <button class="btn btn-primary" onclick="openDiaryEditor('${id}'); ">编辑</button>
+  `);
+}
+function deleteDiary(id){
+  showModal('确认删除', `<p>确定要删除这篇日记吗？此操作不可撤销。</p>`,
+    `<button class="btn btn-secondary" onclick="closeModal(); setTimeout(()=>openDiaryDetail('${id}'),100)">取消</button>
+     <button class="btn btn-danger" onclick="confirmDeleteDiary('${id}')">删除</button>`);
+}
+function confirmDeleteDiary(id){
+  state.diaries = state.diaries.filter(x=>x.id!==id);
+  saveState(); closeModal(); render(); toast('已删除');
+}
+
+/* ===== Study Page ===== */
+function renderStudy(){
+  const t = todayStr();
+  const todayLogs = state.studyLogs.filter(x=>x.date===t);
+  const todayTotal = todayLogs.reduce((s,x)=>s+x.duration, 0);
+  const weekStart = new Date(); weekStart.setDate(weekStart.getDate()-weekStart.getDay());
+  const weekStartStr = weekStart.toISOString().slice(0,10);
+  const weekLogs = state.studyLogs.filter(x=>x.date>=weekStartStr);
+  const weekTotal = weekLogs.reduce((s,x)=>s+x.duration, 0);
+  const recentLogs = [...state.studyLogs].sort((a,b)=>b.date.localeCompare(a.date)).slice(0,10);
+
+  const timerState = timer.running ? 'running' : (timer.paused ? 'paused' : '');
+  const elapsedSec = Math.floor((timer.elapsedMs + (timer.running ? Date.now()-timer.startTime : 0)) / 1000);
+  const hh = String(Math.floor(elapsedSec/3600)).padStart(2,'0');
+  const mm = String(Math.floor(elapsedSec%3600/60)).padStart(2,'0');
+  const ss = String(elapsedSec%60).padStart(2,'0');
+
+  let html = `
+    <div class="timer-wrap">
+      <div class="timer-circle ${timerState}">
+        <div class="timer-time">${hh}:${mm}:${ss}</div>
+        <div class="timer-subject">${timer.subject}</div>
+      </div>
+      <div class="timer-controls">
+        ${timer.running
+          ? `<button class="timer-btn secondary" onclick="pauseTimer()">${svg('pause',18,18)} 暂停</button>`
+          : `<button class="timer-btn primary" onclick="startTimer()">${svg('play',18,18)} ${timer.paused?'继续':'开始'}</button>`}
+        ${(timer.running||timer.paused) ? `<button class="timer-btn danger" onclick="stopTimer()">结束</button>` : ''}
+      </div>
+    </div>
+
+    <div class="subject-chips" style="justify-content:center">
+      ${state.subjects.map(s=>`<button class="chip ${s===timer.subject?'active':''}" onclick="selectTimerSubject('${escapeHtml(s)}')">${escapeHtml(s)}</button>`).join('')}
+    </div>
+
+    <div class="stats-row mt-24">
+      <div class="stat-card">
+        <div class="stat-value study">${fmtDuration(todayTotal)}</div>
+        <div class="stat-label">今日</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value study">${fmtDuration(weekTotal)}</div>
+        <div class="stat-label">本周</div>
+      </div>
+    </div>
+
+    <div class="section-title">最近记录</div>
+    <div class="card">
+      ${recentLogs.length===0 ? '<div class="empty-state" style="padding:24px"><p>还没有学习记录</p></div>' :
+        recentLogs.map(log=>`
+          <div class="income-entry">
+            <div class="income-entry-icon" style="background:color-mix(in srgb,var(--study) 12%,transparent)">
+              ${svg('clock',18,18).replace('currentColor','var(--study)')}
+            </div>
+            <div class="income-entry-info">
+              <div class="income-entry-source">${escapeHtml(log.subject)} · ${fmtDuration(log.duration)}</div>
+              <div class="income-entry-note">${fmtDate(log.date)}${log.note?' · '+escapeHtml(log.note):''}</div>
+            </div>
+            <button class="task-delete" style="opacity:1" onclick="deleteStudyLog('${log.id}')">${svg('trash',18,18)}</button>
+          </div>
+        `).join('')}
+    </div>
+  `;
+  $('#page-study').innerHTML = html;
+}
+function selectTimerSubject(s){ timer.subject = s; renderStudy(); }
+function startTimer(){
+  if(timer.paused){ timer.startTime = Date.now(); timer.paused = false; timer.running = true; }
+  else { timer.startTime = Date.now(); timer.elapsedMs = 0; timer.running = true; timer.paused = false; }
+  timer.intervalId = setInterval(()=>renderStudy(), 1000);
+  renderStudy();
+}
+function pauseTimer(){
+  timer.elapsedMs += Date.now() - timer.startTime;
+  timer.running = false; timer.paused = true;
+  clearInterval(timer.intervalId);
+  renderStudy();
+}
+function stopTimer(){
+  if(timer.running) timer.elapsedMs += Date.now() - timer.startTime;
+  const totalMin = Math.max(1, Math.round(timer.elapsedMs / 60000));
+  showModal('保存学习记录', `
+    <div class="form-group">
+      <label class="form-label">科目</label>
+      <select class="form-select" id="log-subject">
+        ${state.subjects.map(s=>`<option ${s===timer.subject?'selected':''}>${escapeHtml(s)}</option>`).join('')}
+      </select>
+    </div>
+    <div class="form-group">
+      <label class="form-label">时长</label>
+      <div style="font-size:24px;font-weight:700;color:var(--study)">${fmtDuration(totalMin)}</div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">备注（可选）</label>
+      <input class="form-input" id="log-note" placeholder="学了什么...">
+    </div>
+  `, `<button class="btn btn-secondary" onclick="cancelStop()">取消</button><button class="btn btn-primary" onclick="confirmStop(${totalMin})">保存</button>`);
+}
+function cancelStop(){
+  closeModal();
+  timer.running = true; timer.startTime = Date.now();
+  timer.intervalId = setInterval(()=>renderStudy(), 1000);
+  renderStudy();
+}
+function confirmStop(duration){
+  const subject = $('#log-subject').value;
+  const note = $('#log-note').value.trim();
+  state.studyLogs.push({ id:uid(), subject, date:todayStr(), duration, note });
+  saveState();
+  timer = { running:false, paused:false, startTime:null, elapsedMs:0, subject:timer.subject, intervalId:null };
+  clearInterval(timer.intervalId);
+  closeModal(); render(); toast('学习记录已保存');
+}
+function deleteStudyLog(id){
+  state.studyLogs = state.studyLogs.filter(x=>x.id!==id);
+  saveState(); render(); toast('已删除');
+}
+
+/* ===== Income Page ===== */
+function renderIncome(){
+  const thisMonth = monthKey(todayStr());
+  const monthIncomes = state.incomes.filter(x=>monthKey(x.date)===thisMonth);
+  const monthTotal = monthIncomes.reduce((s,x)=>s+x.amount, 0);
+  const allIncomes = [...state.incomes].sort((a,b)=>b.date.localeCompare(a.date));
+
+  let html = `
+    <div class="income-summary">
+      <div class="income-total">${fmtMoney(monthTotal)}</div>
+      <div class="income-total-label">本月收入</div>
+    </div>
+  `;
+
+  let lastMonth = '';
+  for(const inc of allIncomes){
+    const mk = monthKey(inc.date);
+    if(mk !== lastMonth){
+      lastMonth = mk;
+      const mt = allIncomes.filter(x=>monthKey(x.date)===mk).reduce((s,x)=>s+x.amount,0);
+      html += `<div class="diary-month-header">${fmtMonth(mk)} · ${fmtMoney(mt)}</div>`;
+    }
+    html += `
+      <div class="diary-entry" onclick="">
+        <div class="income-entry">
+          <div class="income-entry-icon">${svg('wallet',18,18)}</div>
+          <div class="income-entry-info">
+            <div class="income-entry-source">${escapeHtml(inc.source)}</div>
+            <div class="income-entry-note">${fmtDate(inc.date)}${inc.note?' · '+escapeHtml(inc.note):''}</div>
+          </div>
+          <div class="income-entry-amount">${fmtMoney(inc.amount)}</div>
+          <button class="task-delete" style="opacity:1" onclick="event.stopPropagation();deleteIncome('${inc.id}')">${svg('trash',18,18)}</button>
+        </div>
+      </div>`;
+  }
+  if(allIncomes.length===0){
+    html = `<div class="income-summary"><div class="income-total">¥0.00</div><div class="income-total-label">本月收入</div></div><div class="empty-state">${svg('wallet',48,48)}<p>还没有收入记录</p></div>`;
+  }
+  $('#page-income').innerHTML = html;
+}
+function openIncomeEditor(){
+  showModal('添加收入', `
+    <div class="form-group">
+      <label class="form-label">来源</label>
+      <select class="form-select" id="inc-source">
+        ${state.incomeSources.map(s=>`<option>${escapeHtml(s)}</option>`).join('')}
+      </select>
+    </div>
+    <div class="form-group">
+      <label class="form-label">金额（元）</label>
+      <input class="form-input" id="inc-amount" type="number" step="0.01" placeholder="0.00" inputmode="decimal">
+    </div>
+    <div class="form-group">
+      <label class="form-label">日期</label>
+      <input class="form-input" id="inc-date" type="date" value="${todayStr()}">
+    </div>
+    <div class="form-group">
+      <label class="form-label">备注（可选）</label>
+      <input class="form-input" id="inc-note" placeholder="说明...">
+    </div>
+  `, `<button class="btn btn-secondary" onclick="closeModal()">取消</button><button class="btn btn-primary" onclick="addIncome()">保存</button>`);
+  $('#inc-amount').focus();
+}
+function addIncome(){
+  const source = $('#inc-source').value;
+  const amountStr = $('#inc-amount').value;
+  const amount = Math.round(parseFloat(amountStr) * 100);
+  const date = $('#inc-date').value;
+  const note = $('#inc-note').value.trim();
+  if(!amountStr || isNaN(amount) || amount<=0){ toast('请输入有效金额'); return; }
+  state.incomes.push({ id:uid(), source, amount, date, note });
+  saveState(); closeModal(); render(); toast('收入已记录');
+}
+function deleteIncome(id){
+  state.incomes = state.incomes.filter(x=>x.id!==id);
+  saveState(); render(); toast('已删除');
+}
+
+/* ===== Mine Page ===== */
+function renderMine(){
+  const dm = state.settings.darkMode;
+  $('#page-mine').innerHTML = `
+    <div class="mine-header" onclick="openProfileSettings()" style="cursor:pointer">
+      <div class="mine-avatar">${escapeHtml(state.settings.userName.charAt(0).toUpperCase())}</div>
+      <div class="mine-name">${escapeHtml(state.settings.userName)}</div>
+      <div class="text-2" style="font-size:13px;margin-top:4px">点击编辑资料</div>
+    </div>
+
+    <div class="section-title">考试设置</div>
+    <div class="card" style="padding:0">
+      <div class="mine-row" onclick="openExamSettings()">
+        ${svg('target',20,20).replace('currentColor','var(--study)')}
+        <span class="row-label">${escapeHtml(state.settings.examName)}</span>
+        <span class="row-value">${state.settings.examDate}</span>
+        ${svg('chevronR',20,20).replace('currentColor','var(--text3)')}
+      </div>
+    </div>
+
+    <div class="section-title">外观</div>
+    <div class="card" style="padding:0">
+      <div class="mine-row">
+        ${svg('gear',20,20)}
+        <span class="row-label">深色模式</span>
+        <div class="switch ${dm?'on':''}" onclick="toggleDarkMode()"><div class="switch-knob"></div></div>
+      </div>
+    </div>
+
+    <div class="section-title">管理</div>
+    <div class="card" style="padding:0">
+      <div class="mine-row" onclick="openSubjectManager()">
+        ${svg('tag',20,20).replace('currentColor','var(--diary)')}
+        <span class="row-label">科目管理</span>
+        <span class="row-value">${state.subjects.length}个</span>
+        ${svg('chevronR',20,20).replace('currentColor','var(--text3)')}
+      </div>
+      <div class="mine-row" onclick="openSourceManager()">
+        ${svg('wallet',20,20).replace('currentColor','var(--income)')}
+        <span class="row-label">收入来源</span>
+        <span class="row-value">${state.incomeSources.length}个</span>
+        ${svg('chevronR',20,20).replace('currentColor','var(--text3)')}
+      </div>
+    </div>
+
+    <div class="section-title">数据</div>
+    <div class="card" style="padding:0">
+      <div class="mine-row" onclick="exportData()">
+        ${svg('download',20,20)}
+        <span class="row-label">导出数据</span>
+        ${svg('chevronR',20,20).replace('currentColor','var(--text3)')}
+      </div>
+      <div class="mine-row" onclick="confirmClearData()">
+        ${svg('trash',20,20).replace('currentColor','var(--alert)')}
+        <span class="row-label" style="color:var(--alert)">清除所有数据</span>
+      </div>
+    </div>
+
+    <div class="text-center text-3" style="font-size:12px;padding:24px 0">
+      Trace v1.0 · 数据保存在本地浏览器
+    </div>
+  `;
+}
+
+function toggleDarkMode(){
+  state.settings.darkMode = !state.settings.darkMode;
+  applyTheme(); saveState(); render();
+}
+function applyTheme(){
+  document.documentElement.setAttribute('data-theme', state.settings.darkMode?'dark':'light');
+  $('meta[name=theme-color]').setAttribute('content', state.settings.darkMode?'#1C1C1E':'#FAFAF8');
+}
+
+function openProfileSettings(){
+  showModal('编辑资料', `
+    <div class="form-group">
+      <label class="form-label">昵称</label>
+      <input class="form-input" id="user-name" value="${escapeHtml(state.settings.userName)}" placeholder="输入你的昵称">
+    </div>
+  `, `<button class="btn btn-secondary" onclick="closeModal()">取消</button><button class="btn btn-primary" onclick="saveProfileSettings()">保存</button>`);
+  $('#user-name').focus();
+}
+function saveProfileSettings(){
+  const name = $('#user-name').value.trim();
+  if(!name){ toast('请输入昵称'); return; }
+  state.settings.userName = name;
+  saveState(); closeModal(); render(); toast('已保存');
+}
+
+function openExamSettings(){
+  showModal('考试设置', `
+    <div class="form-group">
+      <label class="form-label">考试名称</label>
+      <input class="form-input" id="exam-name" value="${escapeHtml(state.settings.examName)}">
+    </div>
+    <div class="form-group">
+      <label class="form-label">考试日期</label>
+      <input class="form-input" id="exam-date" type="date" value="${state.settings.examDate}">
+    </div>
+  `, `<button class="btn btn-secondary" onclick="closeModal()">取消</button><button class="btn btn-primary" onclick="saveExamSettings()">保存</button>`);
+}
+function saveExamSettings(){
+  const name = $('#exam-name').value.trim();
+  const date = $('#exam-date').value;
+  if(!name){ toast('请输入考试名称'); return; }
+  if(!date){ toast('请选择考试日期'); return; }
+  state.settings.examName = name;
+  state.settings.examDate = date;
+  saveState(); closeModal(); render(); toast('已保存');
+}
+
+function openSubjectManager(){
+  renderTagManager('科目管理', state.subjects, 'subjects', '添加科目');
+}
+function openSourceManager(){
+  renderTagManager('收入来源', state.incomeSources, 'incomeSources', '添加来源');
+}
+function renderTagManager(title, items, key, placeholder){
+  showModal(title, `
+    <div class="tag-list" id="tag-list">
+      ${items.map((s,i)=>`
+        <span class="tag">${escapeHtml(s)} <button class="tag-remove" onclick="removeTag('${key}',${i})">×</button></span>
+      `).join('')}
+    </div>
+    <div class="form-group mt-16">
+      <div style="display:flex;gap:8px">
+        <input class="form-input" id="tag-input" placeholder="${placeholder}" onkeydown="if(event.key==='Enter')addTag('${key}')">
+        <button class="btn btn-primary" style="flex:0 0 auto;padding:10px 16px" onclick="addTag('${key}')">添加</button>
+      </div>
+    </div>
+  `);
+}
+function addTag(key){
+  const input = $('#tag-input');
+  const val = input.value.trim();
+  if(!val){ toast('请输入名称'); return; }
+  if(state[key].includes(val)){ toast('已存在'); return; }
+  state[key].push(val);
+  saveState();
+  if(key==='subjects') openSubjectManager(); else openSourceManager();
+  toast('已添加');
+}
+function removeTag(key, i){
+  state[key].splice(i, 1);
+  saveState();
+  if(key==='subjects') openSubjectManager(); else openSourceManager();
+  toast('已删除');
+}
+
+function exportData(){
+  const data = JSON.stringify(state, null, 2);
+  const blob = new Blob([data], { type:'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = `trace-${todayStr()}.json`;
+  document.body.appendChild(a); a.click(); a.remove();
+  URL.revokeObjectURL(url);
+  toast('数据已导出');
+}
+function confirmClearData(){
+  showModal('清除所有数据', `
+    <p style="color:var(--alert);font-weight:600">⚠️ 此操作不可撤销</p>
+    <p class="mt-8 text-2">将删除所有日记、任务、学习记录和收入数据。建议先导出备份。</p>
+  `, `<button class="btn btn-secondary" onclick="closeModal()">取消</button><button class="btn btn-danger" onclick="clearAllData()">确认清除</button>`);
+}
+function clearAllData(){
+  localStorage.removeItem(STORAGE_KEY);
+  seedSampleData();
+  state.settings.darkMode = false;
+  applyTheme();
+  closeModal(); render(); toast('数据已重置');
+}
+
+/* ===== Init ===== */
+function init(){
+  loadState();
+  applyTheme();
+  renderTabBar();
+  render();
+}
+init();
+</script>
+</body>
+</html>
